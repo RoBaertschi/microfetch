@@ -1,18 +1,43 @@
 use crate::colors::COLORS;
-use nix::sys::{statvfs::statvfs, utsname::UtsName};
-use std::{
-    env,
-    fs::File,
-    io::{self, Read},
+use windows::Win32::NetworkManagement::NetManagement::UNLEN;
+use windows::Win32::System::SystemInformation::ComputerNameNetBIOS;
+use windows::{
+    Win32::{
+        Storage::FileSystem::{DISK_SPACE_INFORMATION, GetDiskSpaceInformationW},
+        System::{
+            SystemInformation::{
+                GetComputerNameExW, GlobalMemoryStatusEx, MEMORYSTATUSEX,
+            },
+            WindowsProgramming::GetUserNameW,
+        },
+    },
+    core::PWSTR,
 };
 
-pub fn get_username_and_hostname(utsname: &UtsName) -> String {
-    let username = env::var("USER").unwrap_or_else(|_| "unknown_user".to_string());
-    let hostname = utsname
-        .nodename()
-        .to_str()
-        .unwrap_or("unknown_host")
-        .to_string();
+pub fn get_username_and_hostname() -> String {
+    const HOSTNAME_SIZE: usize = 2048;
+    let mut hostname: [u16; HOSTNAME_SIZE] = [0; HOSTNAME_SIZE];
+    let mut size = HOSTNAME_SIZE as u32;
+
+    unsafe {
+        _ = GetComputerNameExW(
+            ComputerNameNetBIOS,
+            Some(PWSTR::from_raw(&mut hostname[0])),
+            &mut size,
+        )
+    };
+    let hostname = unsafe { PWSTR::from_raw(&mut hostname[0]).to_string() }
+        .unwrap_or("invalid_hostname".to_owned());
+
+    let mut username: [u16; UNLEN as usize] = [0; UNLEN as usize];
+    size = UNLEN;
+
+    unsafe {
+        _ = GetUserNameW(Some(PWSTR::from_raw(&mut username[0])), &mut size);
+    }
+    let username = unsafe { PWSTR::from_raw(&mut username[0]).to_string() }
+        .unwrap_or("invalid_username".to_owned());
+
     format!(
         "{yellow}{username}{red}@{green}{hostname}{reset}",
         yellow = COLORS.yellow,
@@ -23,19 +48,24 @@ pub fn get_username_and_hostname(utsname: &UtsName) -> String {
 }
 
 pub fn get_shell() -> String {
-    let shell_path = env::var("SHELL").unwrap_or_else(|_| "unknown_shell".to_string());
-    let shell_name = shell_path.rsplit('/').next().unwrap_or("unknown_shell");
-    shell_name.to_string()
+    // TODO(robin): detect the shell correctly
+    "cmd.exe".to_string()
 }
 
-pub fn get_root_disk_usage() -> Result<String, io::Error> {
-    let vfs = statvfs("/")?;
-    let block_size = vfs.block_size() as u64;
-    let total_blocks = vfs.blocks();
-    let available_blocks = vfs.blocks_available();
+pub fn get_root_disk_usage() -> windows::core::Result<String> {
+    let mut disk_space_info = DISK_SPACE_INFORMATION::default();
 
-    let total_size = block_size * total_blocks;
-    let used_size = total_size - (block_size * available_blocks);
+    unsafe {
+        // NOTE(robin): null means the root file system
+        GetDiskSpaceInformationW(PWSTR::null(), &mut disk_space_info)?;
+    }
+
+    let total_size = disk_space_info.ActualTotalAllocationUnits
+        * disk_space_info.SectorsPerAllocationUnit as u64
+        * disk_space_info.BytesPerSector as u64;
+    let used_size = disk_space_info.UsedAllocationUnits
+        * disk_space_info.SectorsPerAllocationUnit as u64
+        * disk_space_info.BytesPerSector as u64;
 
     let total_size = total_size as f64 / (1024.0 * 1024.0 * 1024.0);
     let used_size = used_size as f64 / (1024.0 * 1024.0 * 1024.0);
@@ -48,35 +78,23 @@ pub fn get_root_disk_usage() -> Result<String, io::Error> {
     ))
 }
 
-pub fn get_memory_usage() -> Result<String, io::Error> {
-    fn parse_memory_info() -> Result<(f64, f64), io::Error> {
-        let mut total_memory_kb = 0.0;
-        let mut available_memory_kb = 0.0;
-        let mut meminfo = String::with_capacity(2048);
+pub fn get_memory_usage() -> windows::core::Result<String> {
+    let mut memory_status_ex = MEMORYSTATUSEX {
+        dwLength: size_of::<MEMORYSTATUSEX>() as u32,
+        ..MEMORYSTATUSEX::default()
+    };
 
-        File::open("/proc/meminfo")?.read_to_string(&mut meminfo)?;
-
-        for line in meminfo.lines() {
-            let mut split = line.split_whitespace();
-            match split.next().unwrap_or_default() {
-                "MemTotal:" => total_memory_kb = split.next().unwrap_or("0").parse().unwrap_or(0.0),
-                "MemAvailable:" => {
-                    available_memory_kb = split.next().unwrap_or("0").parse().unwrap_or(0.0);
-                    // MemTotal comes before MemAvailable, stop parsing
-                    break;
-                }
-                _ => (),
-            }
-        }
-
-        let total_memory_gb = total_memory_kb / 1024.0 / 1024.0;
-        let available_memory_gb = available_memory_kb / 1024.0 / 1024.0;
-        let used_memory_gb = total_memory_gb - available_memory_gb;
-
-        Ok((used_memory_gb, total_memory_gb))
+    unsafe {
+        GlobalMemoryStatusEx(&mut memory_status_ex)?;
     }
 
-    let (used_memory, total_memory) = parse_memory_info()?;
+    let total_memory_kb = memory_status_ex.ullTotalPhys as f64 / 1024.0;
+    let available_memory_kb = memory_status_ex.ullAvailPhys as f64 / 1024.0;
+
+    let total_memory = total_memory_kb / 1024.0 / 1024.0;
+    let available_memory_gb = available_memory_kb / 1024.0 / 1024.0;
+    let used_memory = total_memory - available_memory_gb;
+
     let percentage_used = (used_memory / total_memory * 100.0).round() as u64;
 
     Ok(format!(

@@ -1,13 +1,15 @@
-use std::{io, mem::MaybeUninit};
+use std::io;
+
+use windows::Win32::System::WindowsProgramming::QueryUnbiasedInterruptTime;
 
 pub fn get_current() -> Result<String, io::Error> {
-    let uptime_seconds = {
-        let mut info = MaybeUninit::uninit();
-        if unsafe { libc::sysinfo(info.as_mut_ptr()) } != 0 {
-            return Err(io::Error::last_os_error());
-        }
-        unsafe { info.assume_init().uptime as u64 }
-    };
+    let mut uptime: u64 = 0;
+
+    if !unsafe { QueryUnbiasedInterruptTime(&mut uptime) }.as_bool() {
+        return Ok("invalid_uptime".to_string());
+    }
+
+    let uptime_seconds = uptime / 10000 / 1000;
 
     let days = uptime_seconds / 86400;
     let hours = (uptime_seconds / 3600) % 24;

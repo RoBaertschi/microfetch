@@ -15,16 +15,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if Some("--version") == std::env::args().nth(1).as_deref() {
         println!("Microfetch {}", env!("CARGO_PKG_VERSION"));
     } else {
-        let utsname = nix::sys::utsname::uname()?;
         let fields = Fields {
-            user_info: get_username_and_hostname(&utsname),
-            os_name: get_os_pretty_name()?,
-            kernel_version: get_system_info(&utsname),
+            user_info: get_username_and_hostname(),
+            os_name: get_os_pretty_name()
+                .unwrap_or_else(|e| format!("no os name {e}")),
+            kernel_version: get_system_info(),
             shell: get_shell(),
             desktop: get_desktop_info(),
-            uptime: get_current()?,
-            memory_usage: get_memory_usage()?,
-            storage: get_root_disk_usage()?,
+            uptime: get_current()
+                .unwrap_or_else(|e| format!("no uptime {e}")),
+            memory_usage: get_memory_usage()
+                .unwrap_or_else(|e| format!("no memory usage {e}")),
+            storage: get_root_disk_usage()
+                .unwrap_or_else(|e| format!("no disk usage {e}")),
             colors: print_dots(),
         };
         print_system_info(&fields)?;
@@ -68,15 +71,14 @@ fn print_system_info(fields: &Fields) -> Result<(), Box<dyn std::error::Error>> 
     let blue = COLORS.blue;
     let reset = COLORS.reset;
     let system_info = format!("
-    {cyan}     ▟█▖    {blue}▝█▙ ▗█▛          {user_info} ~{reset}
-    {cyan}  ▗▄▄▟██▄▄▄▄▄{blue}▝█▙█▛  {cyan}▖        {cyan}  {blue}System{reset}        {os_name}
-    {cyan}  ▀▀▀▀▀▀▀▀▀▀▀▘{blue}▝██  {cyan}▟█▖       {cyan}  {blue}Kernel{reset}        {kernel_version}
-    {blue}     ▟█▛       {blue}▝█▘{cyan}▟█▛        {cyan}  {blue}Shell{reset}         {shell}
-    {blue}▟█████▛          {cyan}▟█████▛     {cyan}  {blue}Uptime{reset}        {uptime}
-    {blue}   ▟█▛{cyan}▗█▖       {cyan}▟█▛          {cyan}  {blue}Desktop{reset}       {desktop}
-    {blue}  ▝█▛  {cyan}██▖{blue}▗▄▄▄▄▄▄▄▄▄▄▄       {cyan}  {blue}Memory{reset}        {memory_usage}
-    {blue}   ▝  {cyan}▟█▜█▖{blue}▀▀▀▀▀██▛▀▀▘       {cyan}󱥎  {blue}Storage (/){reset}   {storage}
-    {cyan}     ▟█▘ ▜█▖    {blue}▝█▛          {cyan}  {blue}Colors{reset}        {colors}\n");
-
+    {blue}████████ █████████    {user_info} ~{reset}
+    {blue}████████ █████████    {cyan}  {blue}System{reset}        {os_name}
+    {blue}████████ █████████    {cyan}  {blue}Kernel{reset}        {kernel_version}
+    {blue}████████ █████████    {cyan}  {blue}Shell{reset}         {shell}
+                          {cyan}  {blue}Uptime{reset}        {uptime}
+    {blue}████████ █████████    {cyan}  {blue}Desktop{reset}       {desktop}
+    {blue}████████ █████████    {cyan}  {blue}Memory{reset}        {memory_usage}
+    {blue}████████ █████████    {cyan}󱥎  {blue}Storage (/){reset}   {storage}
+    {blue}████████ █████████    {cyan}  {blue}Colors{reset}        {colors}\n");
     Ok(stdout().write_all(system_info.as_bytes())?)
 }

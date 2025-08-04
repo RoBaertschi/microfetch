@@ -12,8 +12,19 @@ name = "microfetch"
 path = "src/main.rs"
 
 [dependencies]
-nix = { version = "0.30", features = ["fs", "hostname", "feature"] }
-libc = "0.2"
+windows-strings = "0.4.2"
+windows-sys = "0.60.2"
+
+
+[dependencies.windows]
+version = "0.61.3"
+features = [
+    "Win32_System_SystemInformation",
+    "Win32_System_WindowsProgramming",
+    "Win32_NetworkManagement_NetManagement",
+    "Win32_Storage_FileSystem",
+    "Win32_System_LibraryLoader",
+]
 
 [dev-dependencies]
 criterion = "0.6"
