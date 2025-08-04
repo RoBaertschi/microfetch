@@ -36,10 +36,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-// Struct to hold all the fields we need to print
-// helps avoid clippy warnings about argument count
-// and makes it easier to pass around, though its
-// not like we need to
+// Struct to hold all the fields we need in order to print the fetch. This
+// helps avoid Clippy warnings about argument count, and makes it slightly
+// easier to pass data around. Though, it is not like we really need to.
 struct Fields {
     user_info: String,
     os_name: String,

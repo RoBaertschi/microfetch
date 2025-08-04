@@ -1,6 +1,6 @@
 {
   description = "A microscopic fetch script in Rust, for NixOS systems";
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs?ref=nixos-unstable";
 
   outputs = {
     self,
