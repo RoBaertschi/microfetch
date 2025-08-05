@@ -74,7 +74,7 @@ fn print_system_info(fields: &Fields) -> Result<(), Box<dyn std::error::Error>> 
     {blue}▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀    {cyan}  {blue}Uptime{reset}        {uptime}
     {blue}█████████ █████████    {cyan}  {blue}Desktop{reset}       {desktop}
     {blue}█████████ █████████    {cyan}  {blue}Memory{reset}        {memory_usage}
-    {blue}█████████ █████████    {cyan}󱥎 {blue}Storage (/){reset}   {storage}
+    {blue}█████████ █████████    {cyan}󱥎  {blue}Storage (/){reset}   {storage}
     {blue}█████████ █████████    {cyan}  {blue}Colors{reset}        {colors}\n"
     );
     Ok(stdout().write_all(system_info.as_bytes())?)

@@ -1,6 +1,14 @@
+use std::mem::transmute;
+use std::str::FromStr;
+
 use crate::colors::COLORS;
+use windows::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation};
 use windows::Win32::NetworkManagement::NetManagement::UNLEN;
 use windows::Win32::System::SystemInformation::ComputerNameNetBIOS;
+use windows::Win32::System::Threading::{
+    GetCurrentProcess, OpenProcess, PROCESS_BASIC_INFORMATION, PROCESS_NAME_FORMAT,
+    PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameA,
+};
 use windows::{
     Win32::{
         Storage::FileSystem::{DISK_SPACE_INFORMATION, GetDiskSpaceInformationW},
@@ -11,6 +19,7 @@ use windows::{
     },
     core::PWSTR,
 };
+use windows_strings::PSTR;
 
 pub fn get_username_and_hostname() -> String {
     const HOSTNAME_SIZE: usize = 2048;
@@ -46,8 +55,75 @@ pub fn get_username_and_hostname() -> String {
 }
 
 pub fn get_shell() -> String {
-    // TODO(robin): detect the shell correctly
-    "cmd.exe".to_string()
+    let mut name = "cmd.exe".to_string();
+    let mut pid: u32 = 0;
+    let mut ppid: u32 = 0;
+
+    loop {
+        let h_process = unsafe {
+            if pid == 0 {
+                GetCurrentProcess()
+            } else {
+                match OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) {
+                    Ok(handle) => handle,
+                    Err(_) => return name,
+                }
+            }
+        };
+
+        let mut info = PROCESS_BASIC_INFORMATION::default();
+        let mut size: u32 = 0;
+
+        unsafe {
+            if NtQueryInformationProcess(
+                h_process,
+                ProcessBasicInformation,
+                transmute(&mut info as *mut PROCESS_BASIC_INFORMATION),
+                size_of_val(&info) as u32,
+                &mut size,
+            )
+            .is_ok()
+            {
+                assert_eq!(size, size_of_val(&info) as u32);
+                ppid = info.InheritedFromUniqueProcessId as u32;
+            }
+        }
+
+        let mut exe: [u8; 2048] = [0; 2048];
+        let mut new_size = exe.len() as u32;
+        unsafe {
+            if let Err(_) = QueryFullProcessImageNameA(
+                h_process,
+                PROCESS_NAME_FORMAT(0),
+                PSTR::from_raw(exe.as_mut_ptr()),
+                &mut new_size,
+            ) {
+                return name;
+            }
+        }
+        let mut exe =
+            String::from_str(str::from_utf8(&exe[..(new_size as usize)]).unwrap_or("Invalid Exe"))
+                .unwrap();
+
+        exe = exe.strip_suffix(".exe").unwrap_or(&exe).to_string();
+        let last_path = exe.rfind("\\");
+        name = match last_path {
+            Some(idx) => exe[idx + 1..].to_string(),
+            None => exe,
+        };
+
+        if name.to_lowercase().starts_with("conemu")
+            || name.to_lowercase() == "microfetch"
+            || name.to_lowercase() == "cargo"
+        {
+            pid = ppid;
+            continue;
+        }
+
+        break;
+    }
+
+    name
 }
 
 pub fn get_root_disk_usage() -> windows::core::Result<String> {

@@ -24,6 +24,9 @@ features = [
     "Win32_NetworkManagement_NetManagement",
     "Win32_Storage_FileSystem",
     "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Wdk_System_Threading",
+    "Win32_System_Kernel",
 ]
 
 [dev-dependencies]
