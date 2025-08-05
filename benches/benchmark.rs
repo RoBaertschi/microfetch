@@ -8,12 +8,11 @@ use microfetch_lib::system::{
 use microfetch_lib::uptime::get_current;
 
 fn main_benchmark(c: &mut Criterion) {
-    let utsname = nix::sys::utsname::uname().expect("lol");
     c.bench_function("user_info", |b| {
-        b.iter(|| get_username_and_hostname(&utsname));
+        b.iter(get_username_and_hostname);
     });
     c.bench_function("os_name", |b| b.iter(get_os_pretty_name));
-    c.bench_function("kernel_version", |b| b.iter(|| get_system_info(&utsname)));
+    c.bench_function("kernel_version", |b| b.iter(get_system_info));
     c.bench_function("shell", |b| b.iter(get_shell));
 
     c.bench_function("desktop", |b| b.iter(get_desktop_info));
