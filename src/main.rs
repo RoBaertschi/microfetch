@@ -17,17 +17,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         let fields = Fields {
             user_info: get_username_and_hostname(),
-            os_name: get_os_pretty_name()
-                .unwrap_or_else(|e| format!("no os name {e}")),
-            kernel_version: get_system_info(),
+            os_name: get_os_pretty_name().unwrap_or_else(|e| format!("no os name {e}")),
+            kernel_version: get_system_info().unwrap_or_else(|e| format!("no kernel version {e}")),
             shell: get_shell(),
             desktop: get_desktop_info(),
-            uptime: get_current()
-                .unwrap_or_else(|e| format!("no uptime {e}")),
-            memory_usage: get_memory_usage()
-                .unwrap_or_else(|e| format!("no memory usage {e}")),
-            storage: get_root_disk_usage()
-                .unwrap_or_else(|e| format!("no disk usage {e}")),
+            uptime: get_current().unwrap_or_else(|e| format!("no uptime {e}")),
+            memory_usage: get_memory_usage().unwrap_or_else(|e| format!("no memory usage {e}")),
+            storage: get_root_disk_usage().unwrap_or_else(|e| format!("no disk usage {e}")),
             colors: print_dots(),
         };
         print_system_info(&fields)?;
@@ -69,15 +65,17 @@ fn print_system_info(fields: &Fields) -> Result<(), Box<dyn std::error::Error>> 
     let cyan = COLORS.cyan;
     let blue = COLORS.blue;
     let reset = COLORS.reset;
-    let system_info = format!("
-    {blue}████████ █████████    {user_info} ~{reset}
-    {blue}████████ █████████    {cyan}  {blue}System{reset}        {os_name}
-    {blue}████████ █████████    {cyan}  {blue}Kernel{reset}        {kernel_version}
-    {blue}████████ █████████    {cyan}  {blue}Shell{reset}         {shell}
-                          {cyan}  {blue}Uptime{reset}        {uptime}
-    {blue}████████ █████████    {cyan}  {blue}Desktop{reset}       {desktop}
-    {blue}████████ █████████    {cyan}  {blue}Memory{reset}        {memory_usage}
-    {blue}████████ █████████    {cyan}󱥎  {blue}Storage (/){reset}   {storage}
-    {blue}████████ █████████    {cyan}  {blue}Colors{reset}        {colors}\n");
+    let system_info = format!(
+        "
+    {blue}▄▄▄▄▄▄▄▄▄ ▄▄▄▄▄▄▄▄▄    {user_info} ~{reset}
+    {blue}█████████ █████████    {cyan}  {blue}System{reset}        {os_name}
+    {blue}█████████ █████████    {cyan}  {blue}Kernel{reset}        {kernel_version}
+    {blue}█████████ █████████    {cyan}  {blue}Shell{reset}         {shell}
+    {blue}▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀▀    {cyan}  {blue}Uptime{reset}        {uptime}
+    {blue}█████████ █████████    {cyan}  {blue}Desktop{reset}       {desktop}
+    {blue}█████████ █████████    {cyan}  {blue}Memory{reset}        {memory_usage}
+    {blue}█████████ █████████    {cyan}󱥎 {blue}Storage (/){reset}   {storage}
+    {blue}█████████ █████████    {cyan}  {blue}Colors{reset}        {colors}\n"
+    );
     Ok(stdout().write_all(system_info.as_bytes())?)
 }

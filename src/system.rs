@@ -5,9 +5,7 @@ use windows::{
     Win32::{
         Storage::FileSystem::{DISK_SPACE_INFORMATION, GetDiskSpaceInformationW},
         System::{
-            SystemInformation::{
-                GetComputerNameExW, GlobalMemoryStatusEx, MEMORYSTATUSEX,
-            },
+            SystemInformation::{GetComputerNameExW, GlobalMemoryStatusEx, MEMORYSTATUSEX},
             WindowsProgramming::GetUserNameW,
         },
     },
